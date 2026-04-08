@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { useState, useEffect } from 'react';
 import { Clock, Plus, Settings as SettingsIcon, Shield, ChevronRight } from 'lucide-react';
 
@@ -285,3 +286,5 @@ const SecuritySettingsTab: React.FC = () => {
     </div>
   );
 };
+
+export default Settings;
