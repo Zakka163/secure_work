@@ -22,6 +22,7 @@ export interface Employee {
   name: string;
   reportCount: number;
   lastActive: string;
+  phone: string;
 }
 
 const names = ['Iqbal Zakka', 'Budi Santoso', 'Siti Aminah', 'Rizky Pratama', 'Ahmad Dani', 'Dewi Kusuma', 'Andi Wijaya', 'Susi Susanti'];
@@ -71,6 +72,7 @@ export const mockEmployees: Employee[] = names.map((name, i) => ({
   name,
   reportCount: (i * 3) + 5,
   lastActive: `2026-04-08 10:0${i}`,
+  phone: `628123456789${i}`, // WhatsApp format requires no '+' typically, e.g. 628...
 }));
 
 export const getStats = () => ({

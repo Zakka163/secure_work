@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, MapPin, Clock, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
 import type { Report } from '../data/mockData';
 
 interface ReportDetailModalProps {
@@ -7,163 +8,216 @@ interface ReportDetailModalProps {
   onClose: () => void;
 }
 
+const AVATAR_COLORS = [
+  { bg: '#FF6B6B', text: '#fff' }, { bg: '#4ECDC4', text: '#fff' }, { bg: '#45B7D1', text: '#fff' },
+  { bg: '#96CEB4', text: '#fff' }, { bg: '#FFEAA7', text: '#636e72' }, { bg: '#DDA0DD', text: '#fff' },
+  { bg: '#98D8C8', text: '#fff' }, { bg: '#F7DC6F', text: '#636e72' }, { bg: '#BB8FCE', text: '#fff' }, { bg: '#85C1E9', text: '#fff' },
+];
+const getAvatarColor = (name: string) => {
+  const idx = [...name].reduce((acc, c) => acc + c.charCodeAt(0), 0) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[idx];
+};
+const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+const formatDateTime = (timeStr: string) => {
+  if (!timeStr) return '';
+  const [dateP, timeP] = timeStr.split(' ');
+  const d = new Date(dateP);
+  const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+  return `${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]} • ${timeP}`;
+};
+
 const ReportDetailModal: React.FC<ReportDetailModalProps> = ({ report, onClose }) => {
-  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+  const [activePairIdx, setActivePairIdx] = useState(0);
+  const [activeTab, setActiveTab] = useState<'before' | 'after'>('before');
 
   if (!report) return null;
 
-  return (
+  const avatar = getAvatarColor(report.employeeName);
+  const totalPairs = report.evidence.length;
+  const currentPair = report.evidence[activePairIdx];
+  const currentImg = activeTab === 'before' ? currentPair?.before : (currentPair?.after ?? currentPair?.before);
+
+  return createPortal(
     <>
-      <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
-        <div 
-           className="modal-content" 
-           onClick={(e) => e.stopPropagation()}
-           style={{ 
-             maxWidth: '960px', 
-             padding: '40px',
-             borderRadius: '16px',
-             background: 'var(--bg-card)',
-             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-             animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-           }}
+      <div className="modal-overlay" onClick={onClose} style={{ zIndex: 9998 }}>
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            width: '100%', maxWidth: '430px',
+            background: 'var(--bg-main)',
+            borderRadius: '24px 24px 0 0',
+            maxHeight: '92vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            animation: 'slideUpMobile 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+            boxShadow: 'var(--shadow-modal)',
+          }}
         >
-          {/* Header Section */}
-          <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <h2 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                {report.employeeName}
-              </h2>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', color: 'var(--text-secondary)', fontSize: '15px' }}>
-                <span>8 Apr • {report.time.split(' ')[1]}</span>
-                <span>–</span>
-                <span>{report.location}</span>
+
+          {/* ── Header (Action Sheet Style like Employees) ── */}
+          <div style={{
+            background: 'rgba(255,255,255,0.95)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: '24px 24px 0 0',
+            borderBottom: '0.5px solid var(--border)',
+            padding: '14px 16px 0',
+            flexShrink: 0,
+          }}>
+            {/* Drag Handle */}
+            <div style={{ width: '36px', height: '4px', background: 'var(--border)', borderRadius: '2px', margin: '0 auto 16px auto' }} />
+
+            {/* Profile section - centered like iOS Action Sheet */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '16px', gap: '8px' }}>
+              <div style={{
+                width: '60px', height: '60px', borderRadius: '50%',
+                background: avatar.bg, color: avatar.text,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 700, fontSize: '22px',
+                boxShadow: `0 6px 20px ${avatar.bg}55`,
+                marginBottom: '4px',
+              }}>
+                {getInitials(report.employeeName)}
               </div>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {report.employeeName}
+              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Clock size={12} /> {formatDateTime(report.time)}
+                </span>
+                <span style={{ color: 'var(--border)', fontSize: '13px' }}>•</span>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <MapPin size={12} /> {report.location}
+                </span>
+              </div>
+              <span style={{ background: 'var(--primary-light)', color: 'var(--primary)', fontSize: '12px', fontWeight: 700, padding: '4px 12px', borderRadius: '20px' }}>
+                Shift {report.shift}
+              </span>
             </div>
 
-            {/* Sidebar-style Close Button (Icon Only) */}
-            <button 
-              onClick={onClose}
-              style={{ 
-                 display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                 background: 'transparent', border: 'none', 
-                 color: 'var(--text-secondary)', cursor: 'pointer',
-                 padding: '8px', borderRadius: '8px',
-                 transition: 'all 0.2s',
-                 marginTop: '4px'
-              }}
-              onMouseEnter={(e) => {
-                 e.currentTarget.style.background = '#F1F5F9';
-                 e.currentTarget.style.color = 'var(--text-primary)';
-              }}
-              onMouseLeave={(e) => {
-                 e.currentTarget.style.background = 'transparent';
-                 e.currentTarget.style.color = 'var(--text-secondary)';
-              }}
-              title="Tutup"
-            >
-              <X size={20} />
-            </button>
+            {/* Before / After Segment */}
+            {totalPairs > 0 && (
+              <div style={{ display: 'flex', background: 'var(--bg-input)', borderRadius: '10px', padding: '3px', marginBottom: '14px' }}>
+                {(['before', 'after'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    disabled={tab === 'after' && !currentPair?.after}
+                    style={{
+                      flex: 1, padding: '8px 0', border: 'none', borderRadius: '8px', fontFamily: 'inherit',
+                      background: activeTab === tab ? 'white' : 'transparent',
+                      color: activeTab === tab ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      fontWeight: activeTab === tab ? 600 : 500,
+                      fontSize: '14px',
+                      cursor: tab === 'after' && !currentPair?.after ? 'not-allowed' : 'pointer',
+                      opacity: tab === 'after' && !currentPair?.after ? 0.4 : 1,
+                      boxShadow: activeTab === tab ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {tab === 'before' ? 'Sebelum' : 'Sesudah'}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
+          {/* Close button floating */}
+          <button
+            onClick={onClose}
+            style={{
+              position: 'absolute', top: '16px', right: '16px',
+              width: '32px', height: '32px', borderRadius: '50%', border: 'none',
+              background: 'var(--bg-input)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', cursor: 'pointer', color: 'var(--text-secondary)', zIndex: 10,
+            }}
+          >
+            <X size={16} />
+          </button>
 
+          {/* ── Scrollable Body ── */}
+          <div style={{ overflowY: 'auto', flex: 1, padding: '16px 16px 32px' }}>
 
-          {/* Evidence Section (Main Focus) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '32px' }}>
-             {/* Pairs Loop */}
-             {report.evidence.map((pair, idx) => (
-               <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                  <div style={{ position: 'relative' }}>
-                     {/* Tiny subtle pill label inside image */}
-                     <div style={{ 
-                       position: 'absolute', top: '12px', left: '12px', 
-                       background: 'rgba(255,255,255,0.95)', padding: '4px 10px', 
-                       borderRadius: '6px', fontSize: '11px', fontWeight: 700, 
-                       color: 'var(--text-primary)', letterSpacing: '0.05em', zIndex: 10,
-                       boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                     }}>BEFORE</div>
-                     <div style={{ borderRadius: '12px', overflow: 'hidden', background: '#1E293B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                       <img 
-                         src={pair.before} 
-                         alt="Before evidence" 
-                         onClick={() => setFullscreenImage(pair.before)}
-                         style={{ width: '100%', height: 'auto', maxHeight: '400px', objectFit: 'contain', cursor: 'pointer', transition: 'transform 0.4s ease-out', display: 'block' }}
-                         onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.04)'}
-                         onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                       />
-                     </div>
+            {/* Image */}
+            {totalPairs > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <div
+                  onClick={() => currentImg && setLightboxImg(currentImg)}
+                  style={{
+                    width: '100%', borderRadius: 'var(--radius-card)', overflow: 'hidden',
+                    background: '#1C1C1E', position: 'relative', cursor: 'pointer', aspectRatio: '4/3',
+                  }}
+                >
+                  {currentImg ? (
+                    <img src={currentImg} alt={activeTab} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+                      Tidak ada foto
+                    </div>
+                  )}
+                  {currentImg && (
+                    <div style={{ position: 'absolute', bottom: '12px', right: '12px', background: 'rgba(0,0,0,0.45)', borderRadius: '20px', padding: '6px 10px', display: 'flex', alignItems: 'center' }}>
+                      <ZoomIn size={14} color="white" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Carousel nav */}
+                {totalPairs > 1 && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginTop: '12px' }}>
+                    <button
+                      onClick={() => setActivePairIdx(i => Math.max(0, i - 1))}
+                      disabled={activePairIdx === 0}
+                      style={{ width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: activePairIdx === 0 ? 0.3 : 1 }}
+                    ><ChevronLeft size={18} color="var(--text-primary)" /></button>
+
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {report.evidence.map((_, i) => (
+                        <div key={i} onClick={() => setActivePairIdx(i)} style={{ width: i === activePairIdx ? '20px' : '8px', height: '8px', borderRadius: '4px', background: i === activePairIdx ? 'var(--primary)' : 'var(--border)', cursor: 'pointer', transition: 'all 0.3s' }} />
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => setActivePairIdx(i => Math.min(totalPairs - 1, i + 1))}
+                      disabled={activePairIdx === totalPairs - 1}
+                      style={{ width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', opacity: activePairIdx === totalPairs - 1 ? 0.3 : 1 }}
+                    ><ChevronRight size={18} color="var(--text-primary)" /></button>
                   </div>
-                  
-                  <div style={{ position: 'relative' }}>
-                     <div style={{ 
-                       position: 'absolute', top: '12px', left: '12px', 
-                       background: 'rgba(255,255,255,0.95)', padding: '4px 10px', 
-                       borderRadius: '6px', fontSize: '11px', fontWeight: 700, 
-                       color: 'var(--text-primary)', letterSpacing: '0.05em', zIndex: 10,
-                       boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                     }}>AFTER</div>
-                     <div style={{ borderRadius: '12px', overflow: 'hidden', background: '#1E293B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {pair.after ? (
-                           <img 
-                             src={pair.after} 
-                             alt="After evidence" 
-                             onClick={() => setFullscreenImage(pair.after)}
-                             style={{ width: '100%', height: 'auto', maxHeight: '400px', objectFit: 'contain', cursor: 'pointer', transition: 'transform 0.4s ease-out', display: 'block' }}
-                             onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.04)'}
-                             onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                           />
-                        ) : (
-                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-secondary)', fontSize: '14px' }}>Tidak ada gambar</div>
-                        )}
-                     </div>
-                  </div>
-               </div>
-             ))}
+                )}
+              </div>
+            )}
+
+            {/* Notes */}
+            {report.notes && (
+              <div className="mobile-list-container">
+                <div className="mobile-list-item" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: '6px', cursor: 'default' }}>
+                  <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>CATATAN</p>
+                  <p style={{ margin: 0, fontSize: '15px', color: 'var(--text-primary)', lineHeight: 1.6 }}>{report.notes}</p>
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* Notes Section */}
-          {report.notes && (
-             <div style={{ background: '#F8FAFC', padding: '16px 20px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
-                  {report.notes}
-                </p>
-             </div>
-          )}
-
-
         </div>
       </div>
 
-      {/* Fullscreen Image Preview */}
-      {fullscreenImage && (
-         <div 
-           style={{ 
-              position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.95)', 
-              display: 'flex', alignItems: 'center', justifyContent: 'center', 
-              zIndex: 9999, padding: '24px', backdropFilter: 'blur(4px)'
-           }}
-           onClick={() => setFullscreenImage(null)}
-         >
-            <button 
-              style={{ 
-                position: 'absolute', top: '24px', right: '24px', background: 'rgba(255,255,255,0.1)', 
-                border: 'none', color: 'white', cursor: 'pointer', borderRadius: '50%',
-                width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'background 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-            >
-              <X size={24} />
-            </button>
-            <img 
-               src={fullscreenImage} 
-               alt="Fullscreen preview" 
-               style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '12px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }} 
-               onClick={(e) => e.stopPropagation()}
-            />
-         </div>
+      {/* Lightbox */}
+      {lightboxImg && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.97)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '16px' }}
+          onClick={() => setLightboxImg(null)}
+        >
+          <button style={{ position: 'absolute', top: '20px', right: '20px', width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'white' }}>
+            <X size={22} />
+          </button>
+          <img src={lightboxImg} alt="Preview" onClick={e => e.stopPropagation()} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '12px' }} />
+        </div>
       )}
-    </>
+    </>,
+    document.body
   );
 };
 
